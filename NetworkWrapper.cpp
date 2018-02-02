@@ -3,7 +3,7 @@
 #include <vector>
 #include <sstream>
 using namespace std;
-//modify by dezhi.ji@2018-01-18
+//modify by jidzh@2018-01-18
 //#define invokeLib(LibFn,arg1,a...) _p->lasterr=LibFn(arg1,##args)
 #define invokeLib(LibFn,arg1,...) _p->lasterr=LibFn(arg1,##__VA_ARGS__)
 
@@ -284,7 +284,7 @@ int HTTPConnection::setTransferEncoding(bool enable)
     return invokeLib(curl_easy_setopt,_p->c,CURLOPT_TRANSFER_ENCODING,enable?1L:0);
 }
 
-//modify by jidz@2018-01-24,通用性好一点
+//modify by jidz@2018-01-24,脥篓脫脙脨脭潞脙脪禄碌茫
 int HTTPConnection::setUserAgent(const string &user_agent)
 {
     return invokeLib(curl_easy_setopt,_p->c,CURLOPT_USERAGENT,user_agent.c_str());
