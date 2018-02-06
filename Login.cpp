@@ -1,18 +1,22 @@
 
-#include <curl.h>
+#include <curl/curl.h>
 #include"NetworkWrapper.h"
 #include "Login.h"
 #include"json.hpp"
 using namespace std;
 using namespace nlohmann;
-std::string USERAGENT = "Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.79 Safari/537.36";
 
+#define USERAGENT "Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.79 Safari/537.36"
+#define IS_VERBOS true
 struct  webQQClient
 {
 	std::string qrsig;
 	std::string step2url;
 	std::string ptwebqq;
 	std::string vfwebqq;
+	std::string vfwebqq2;
+	std::string psessionid;
+	int uin;
 };
 
 webQQClient client;
@@ -47,25 +51,45 @@ bool LoginByCookies()
 	PostData+= PostDataByJson.dump();
 
 //------
+//#define URL_5 "http://d1.web2.qq.com/channel/login2"
+//#define REF_5 "http://d1.web2.qq.com/proxy.html?v=20151105001&callback=1&id=2"
 	link.setVerbos(1);
 	link.setURL("http://d1.web2.qq.com/channel/login2");
 	link.setReferer("http://s.web2.qq.com/proxy.html?v=20130916001&callback=1&id=1");
 	link.setUserAgent(USERAGENT);
+	link.setCookieInputFile("cookie4.txt");
+	link.setCookieOutputFile("cookie5.txt");
+	//comment by jidzh@2018-02-04,not affect
+	//link.setSSLVerifyHost(1);
+	//link.setSSLVerifyPeer(1);
 	link.setPostData(PostData);
-	char buff[1024];
-	link.setDataOutputBuffer(buff, 1024);
+	char buff[2048];
+	link.setDataOutputBuffer(buff,2048);
 
 	link.perform();
 
 	if (link.perform()) { link.HTTPConnectDebugPrint(); return false; }
 	if (200 != link.getResponseCode()) { link.HTTPConnectDebugPrint(); return false; }
-	printf("Buff: %s\n", UTF8ToGBK(buff).c_str());
+	//printf("Buff: %s\n", UTF8ToGBK(buff).c_str());
+	json RecvDataByJson;
+	RecvDataByJson.parse(buff);
+	try
+	{
+		client.psessionid = RecvDataByJson["result"]["psessionid"].dump();
+		client.uin = RecvDataByJson["result"]["uin"];
+		client.vfwebqq2 = RecvDataByJson["result"]["vfwebqq"].dump();
+	}
+	catch (...)
+	{
+		return false;
+	}
+
 	return true;
 }
 bool getQRcode()
 {
 	HTTPConnection link;
-	link.setVerbos(1);
+	link.setVerbos(IS_VERBOS);
 	link.setUserAgent(USERAGENT);
 	//comment by jidzh@2018-01-24
 	link.setURL("https://ssl.ptlogin2.qq.com/ptqrshow?appid=501004106&e=0&l=M&s=5&d=72&v=4&t=0.1");
@@ -97,7 +121,7 @@ bool CheckQRcodeState()
 	while (true)
 	{
 		HTTPConnection link;
-		link.setVerbos(true);
+		link.setVerbos(IS_VERBOS);
 		link.setUserAgent(USERAGENT);
 		//printf("%s",hash332(qrsig).c_str());
 
@@ -148,21 +172,10 @@ bool CheckQRcodeState()
 	return true ;
 }
 
-bool tmp(const std::string url)
-{
-	HTTPConnection link;
-	link.setVerbos(true);
-	link.setUserAgent(USERAGENT);
-	link.setURL(url);
-	if (link.perform()) { link.HTTPConnectDebugPrint(); return false; }
-	if (200 != link.getResponseCode()) { link.HTTPConnectDebugPrint(); return false; }
-	return true;
-}
-
 bool GetPtWebQQ()
 {
 	HTTPConnection t;
-	t.setVerbos(true);
+	t.setVerbos(IS_VERBOS);
 	t.setUserAgent(USERAGENT);
 	t.setURL(client.step2url);
 	t.setSSLVerifyHost(0);
@@ -193,7 +206,7 @@ bool GetPtWebQQ()
 bool GetVfWebQQ()
 {
 	HTTPConnection t;
-	t.setVerbos(true);
+	t.setVerbos(IS_VERBOS);
 	t.setUserAgent(USERAGENT);
 	//modify by jidzh@2018-01-25,for url拼接
 	string url_raw = "https://s.web2.qq.com/api/getvfwebqq?ptwebqq=";
@@ -239,7 +252,9 @@ std::string hash33(const std::string& s)
 //comment by jidzh@2018-01-24,之后要把那个根据转码原理的代码拿过来，拒绝win接口
 std::string UTF8ToGBK(std::string UTF8String)
 {
-	int sz = UTF8String.size() * 2 / 3 + 256;
+	//modify by jidzh@2018-02-04
+	//int sz = UTF8String.size() * 2 / 3 + 256;
+	int sz = UTF8String.size() + 256;
 	auto gbkstr = new char[sz];
 	memset(gbkstr, 0, sz);
 
